@@ -63,63 +63,63 @@ class Block {
 	 * @return string The markup of the block.
 	 */
 	public function render_callback( $attributes, $content, $block ) {
-		$post_types = get_post_types(  [ 'public' => true ] );
-		$class_name = $attributes['className'];
+		$post_types = get_post_types(array('public' => true));
+		$class_name = '';
+		// array with certain category and tag (foo, baz etc.)
+		$anyPostsArray = array();
+		$post_id = get_the_ID();
+		if (!empty($attributes['className'])) {
+			$class_name = $attributes['className'];
+		}
+
 		ob_start();
 
 		?>
-        <div class="<?php echo $class_name; ?>">
+		<div class="<?php echo $class_name; ?>">
 			<h2>Post Counts</h2>
 			<ul>
 			<?php
-			foreach ( $post_types as $post_type_slug ) :
-                $post_type_object = get_post_type_object( $post_type_slug  );
-                $post_count = count(
-                    get_posts(
-						[
-							'post_type' => $post_type_slug,
-							'posts_per_page' => -1,
-						]
-					)
-                );
+			if (empty($post_types)) {
+				$post_types = array();
+			}
+			foreach ($post_types as $post_type_slug) {
+				$post_type_object = get_post_type_object($post_type_slug);
 
+				$cacheKey = 'xwp_all_posts';
+				if (!$query == wp_cache_get($cacheKey)) {
+					$query = new WP_Query(array('post_type' => $post_type_slug));
+				}
+				wp_cache_set($cacheKey, $query, '', 21600);
+
+				$post_count = $query->found_posts;
 				?>
 				<li><?php echo 'There are ' . $post_count . ' ' .
 					  $post_type_object->labels->name . '.'; ?></li>
-			<?php endforeach;	?>
-			</ul><p><?php echo 'The current post ID is ' . $_GET['post_id'] . '.'; ?></p>
+			<?php } ?>
+			</ul>
+			<p><?php echo 'The current post ID is ' . $post_id . '.'; ?></p>
+				<?php
+				$cacheKey = 'xwp_certain_posts';
+				if (!$query == wp_cache_get($cacheKey)) {
+					$query = new WP_Query(array(
+						'post_type' => ['post', 'page'],
+						'tag' => 'foo',
+						'category_name' => 'baz'
+					));
+				}
 
-			<?php
-			$query = new WP_Query(  array(
-				'post_type' => ['post', 'page'],
-				'post_status' => 'any',
-				'date_query' => array(
-					array(
-						'hour'      => 9,
-						'compare'   => '>=',
-					),
-					array(
-						'hour' => 17,
-						'compare'=> '<=',
-					),
-				),
-                'tag'  => 'foo',
-                'category_name'  => 'baz',
-				  'post__not_in' => [ get_the_ID() ],
-				  'meta_value' => 'Accepted',
-			));
+				wp_cache_set($cacheKey, $query, '', 43200);
+				if ($query->found_posts) { ?>
+					<h2>Any 5 posts with the tag of foo and the category of baz</h2>
+					<ul>
 
-			if ( $query->found_posts ) :
-				?>
-				 <h2>Any 5 posts with the tag of foo and the category of baz</h2>
-                <ul>
-                <?php
-
-                 foreach ( array_slice( $query->posts, 0, 5 ) as $post ) :
-                    ?><li><?php echo $post->post_title ?></li><?php
-				endforeach;
-			endif;
-		 	?>
+					<?php
+					foreach (array_slice($query->posts, 0, 5) as $post) {
+						?>
+							<li><?php echo $post->post_title ?></li>
+						<?php
+					}
+				} ?>
 			</ul>
 		</div>
 		<?php
